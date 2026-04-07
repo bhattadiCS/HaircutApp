@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { useProfileSync } from '../../profile/hooks/useProfileSync';
 import { useAppStore } from '../../../store/useAppStore';
+import {
+  getFirebaseConfigSetupMessage,
+  isMissingFirebaseConfigError,
+} from '../../../lib/firebaseConfig';
 
 let firebaseModulePromise;
 let firestoreModulePromise;
@@ -26,6 +30,10 @@ function shouldPreferRedirectSignIn() {
 }
 
 function getGoogleAuthErrorMessage(error) {
+  if (isMissingFirebaseConfigError(error)) {
+    return getFirebaseConfigSetupMessage();
+  }
+
   switch (error?.code) {
     case 'auth/unauthorized-domain':
       return 'Google sign-in is blocked until this domain is added to Firebase Authentication.';
@@ -88,7 +96,14 @@ export function useAuthBootstrap() {
           signOutReset();
         });
       })
-      .catch(() => {
+      .catch((error) => {
+        if (isMissingFirebaseConfigError(error)) {
+          setToast({
+            message: getFirebaseConfigSetupMessage(),
+            type: 'error',
+          });
+        }
+
         signOutReset();
       });
 

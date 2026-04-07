@@ -29,6 +29,8 @@ npm run test:lighthouse
 
 Create a local `.env` from `.env.example` for any machine-specific overrides. Do not commit `.env` or generated reports.
 
+GitHub Pages builds also need repository secrets for `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, and `VITE_FIREBASE_APP_ID`. The deploy workflow now fails fast if any of those are missing.
+
 ## Privacy model
 
 - Portrait analysis and hairstyle simulations run locally in the browser.

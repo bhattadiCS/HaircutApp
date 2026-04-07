@@ -1,10 +1,22 @@
 import { useState } from 'react';
+import {
+  getFirebaseConfigSetupMessage,
+  isMissingFirebaseConfigError,
+} from '../../lib/firebaseConfig';
 
 let firebaseModulePromise;
 
 function loadFirebaseModule() {
   firebaseModulePromise ??= import('../../firebaseAuth');
   return firebaseModulePromise;
+}
+
+function formatAuthErrorMessage(error) {
+  if (isMissingFirebaseConfigError(error)) {
+    return getFirebaseConfigSetupMessage();
+  }
+
+  return (error?.message || 'An unexpected error occurred during sign-in.').replace('Firebase: ', '');
 }
 
 const AuthForm = ({ onLogin }) => {
@@ -54,9 +66,7 @@ const AuthForm = ({ onLogin }) => {
       }
     } catch (err) {
       console.error('Auth error:', err);
-      // Catch "Cannot access '...' before initialization" and similar JS errors
-      const errorMessage = err.message || 'An unexpected error occurred during sign-in.';
-      setError(errorMessage.replace('Firebase: ', ''));
+      setError(formatAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -82,7 +92,7 @@ const AuthForm = ({ onLogin }) => {
       setResetSent(true);
       setError('');
     } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
+      setError(formatAuthErrorMessage(err));
     }
   };
 
