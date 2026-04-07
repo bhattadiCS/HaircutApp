@@ -12,9 +12,9 @@ export default defineConfig(({ mode }) => {
   const shouldRequireFirebaseConfig = mode === 'production' && env.VITE_USE_FIREBASE_EMULATORS !== 'true'
 
   if (shouldRequireFirebaseConfig && missingFirebaseConfigKeys.length > 0) {
-    throw new Error(
-      `Missing Firebase env vars for production build: ${missingFirebaseConfigKeys.join(', ')}. ` +
-      'Add them as GitHub Actions secrets or build environment variables before deploying.',
+    console.warn(
+      `Building without Firebase env vars: ${missingFirebaseConfigKeys.join(', ')}. ` +
+      'The app will deploy, but Firebase-backed login will remain unavailable until those values are configured.',
     )
   }
 

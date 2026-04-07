@@ -19,5 +19,5 @@ export function isMissingFirebaseConfigError(error) {
 }
 
 export function getFirebaseConfigSetupMessage() {
-  return 'This deployment is missing Firebase web config. Configure the VITE_FIREBASE_* build secrets before deploying.';
+  return 'This deployment is missing Firebase web config. Login is unavailable until the VITE_FIREBASE_* values are added to the GitHub Pages build.';
 }
