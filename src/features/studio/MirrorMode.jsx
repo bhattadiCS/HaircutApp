@@ -27,6 +27,16 @@ const MirrorMode = ({
   onToggle360,
   onGenerate
 }) => {
+  React.useEffect(() => {
+    // Attempt auto-start camera if no image exists
+    const timer = setTimeout(() => {
+      if (!originalImage && !isCameraOpen) {
+        onStartCamera();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [originalImage, isCameraOpen, onStartCamera]);
+
   return (
     <Motion.div
       initial={{ opacity: 0 }}

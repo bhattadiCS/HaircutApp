@@ -96,8 +96,8 @@ export default function VisionStatusCard({ visionState, aiRuntime }) {
 
   return (
     <div
-      className="glass-panel pointer-events-none absolute left-4 z-20 max-w-[250px] rounded-[1.6rem] p-3.5"
-      style={{ top: 'calc(var(--safe-area-top) + 5rem)' }}
+      className="glass-panel pointer-events-none absolute left-1/2 -translate-x-1/2 z-20 w-[90%] max-w-sm rounded-[1.2rem] p-3 shadow-xl backdrop-blur-md bg-black/40"
+      style={{ top: 'calc(var(--safe-area-top) + 4rem)' }}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/60">
@@ -119,10 +119,8 @@ export default function VisionStatusCard({ visionState, aiRuntime }) {
         </div>
       </div>
 
-      <div className="mt-3 space-y-2 text-xs leading-relaxed text-white/72">
-        {coaching.tips.map((tip) => (
-          <p key={tip}>{tip}</p>
-        ))}
+      <div className="mt-2 text-xs leading-relaxed text-white/80 line-clamp-2">
+        {coaching.tips[0]}
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3 text-xs text-white/70">

@@ -91,7 +91,7 @@ export default function RefineStudio({
       </div>
 
       <div
-        className="relative flex-1 overflow-hidden bg-black"
+        className="relative flex-none min-h-[45vh] h-[50vh] shrink-0 overflow-hidden bg-black"
         onMouseDown={() => setIsComparing(true)}
         onMouseUp={() => setIsComparing(false)}
         onMouseLeave={() => setIsComparing(false)}
@@ -112,6 +112,8 @@ export default function RefineStudio({
           {isComparing ? 'Original' : previewLabel}
         </div>
       </div>
+
+      <div className="flex-1 overflow-y-auto flex flex-col w-full relative z-10">
 
       {analysisResult?.barberBrief ? (
         <div className="glass-panel mx-4 -mt-8 rounded-[1.7rem] px-5 py-4">
@@ -206,6 +208,7 @@ export default function RefineStudio({
             </div>
           </div>
         ))}
+        </div>
       </div>
     </Motion.div>
   );
