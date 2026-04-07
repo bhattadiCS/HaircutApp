@@ -11,12 +11,7 @@ const smartSuggestions = [
   'Soften the fringe',
 ];
 
-const refinementTools = [
-  { icon: Ruler, label: 'Length' },
-  { icon: Volume2, label: 'Volume' },
-  { icon: Palette, label: 'Color' },
-  { icon: Scissors, label: 'Texture' },
-];
+// Removed refinementTools, replaced with slider logic internally
 
 export default function RefineStudio({
   generatedImage,
@@ -29,8 +24,34 @@ export default function RefineStudio({
   refinementNote,
 }) {
   const [isComparing, setIsComparing] = useState(false);
+  const [refinements, setRefinements] = useState({ length: 0, volume: 0, texture: 0 });
   const activeImage = isComparing ? originalImage : generatedImage;
   const previewLabel = analysisResult?.renderMode === 'ai-simulation' ? 'AI Simulation' : 'AI Preview';
+
+  // Update parent with constructed note
+  const handleSliderChange = (key, value) => {
+    let nextR;
+    if (key === 'reset') {
+      nextR = { length: 0, volume: 0, texture: 0 };
+    } else {
+      nextR = { ...refinements, [key]: parseFloat(value) };
+    }
+    setRefinements(nextR);
+    
+    const parts = [];
+    if (nextR.length < 0) parts.push('Make shorter');
+    if (nextR.length > 0) parts.push('Keep longer');
+    if (nextR.volume < 0) parts.push('Reduce volume');
+    if (nextR.volume > 0) parts.push('Add volume');
+    if (nextR.texture < 0) parts.push('Straighten texture');
+    if (nextR.texture > 0) parts.push('Enhance texture');
+    
+    if (parts.length > 0) {
+      onRefine(parts.join(', '));
+    } else {
+      onRefine('');
+    }
+  };
 
   return (
     <Motion.div
@@ -126,7 +147,7 @@ export default function RefineStudio({
 
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {smartSuggestions.map((suggestion) => {
-            const isActive = refinementNote === suggestion;
+            const isActive = refinementNote?.includes(suggestion);
 
             return (
               <Motion.button
@@ -145,34 +166,46 @@ export default function RefineStudio({
       </div>
 
       <div
-        className="border-t border-white/5 bg-zinc-900 px-6 py-6"
+        className="border-t border-white/5 bg-zinc-900 px-6 py-6 flex flex-col gap-5"
         style={{ paddingBottom: 'calc(var(--safe-area-bottom) + 1.5rem)' }}
       >
-        <div className="mb-6 text-xs uppercase tracking-[0.26em] text-white/45">
-          Note Presets
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs uppercase tracking-[0.26em] text-white/45">
+            Fine Tune
+          </div>
+          <button 
+            className="text-xs text-cyan-200/80 uppercase tracking-widest hover:text-cyan-50"
+            onClick={() => handleSliderChange('reset', 0)}
+          >
+            Reset
+          </button>
         </div>
 
-        <div className="flex justify-between gap-4">
-          {refinementTools.map((tool) => {
-            const isActive = refinementNote === tool.label;
-
-            return (
-              <Motion.button
-                key={tool.label}
-                transition={BUTTON_SPRING}
-                whileHover={{ scale: 1.06 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => onRefine(tool.label)}
-                className="flex flex-col items-center gap-2"
-              >
-                <div className={`glass-panel flex h-14 w-14 items-center justify-center rounded-2xl transition-colors ${isActive ? 'border-cyan-300/45 bg-cyan-300/15' : 'hover:bg-white/[0.12]'}`}>
-                  <tool.icon className={`h-6 w-6 ${isActive ? 'text-cyan-50' : 'text-white'}`} />
-                </div>
-                <span className={`text-xs ${isActive ? 'text-cyan-50' : 'text-white/60'}`}>{tool.label}</span>
-              </Motion.button>
-            );
-          })}
-        </div>
+        {[
+          { key: 'length', icon: Ruler, label: 'Length', minL: 'Shorter', maxL: 'Longer' },
+          { key: 'volume', icon: Volume2, label: 'Volume', minL: 'Less', maxL: 'More' },
+          { key: 'texture', icon: Scissors, label: 'Texture', minL: 'Straight', maxL: 'Wavy' },
+        ].map(({ key, icon: Icon, label, minL, maxL }) => (
+          <div key={key} className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-white/80">
+              <Icon className="h-4 w-4" />
+              <span className="text-sm font-medium">{label}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-white/40 w-12 text-right">{minL}</span>
+              <input 
+                type="range" 
+                min="-1" 
+                max="1" 
+                step="1"
+                value={refinements[key]}
+                onChange={(e) => handleSliderChange(key, e.target.value)}
+                className="flex-1 accent-cyan-400 opacity-80 transition-opacity hover:opacity-100"
+              />
+              <span className="text-xs text-white/40 w-12 text-left">{maxL}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </Motion.div>
   );

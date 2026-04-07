@@ -111,6 +111,7 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
   const setView = useAppStore((state) => state.setView);
   const setOriginalImage = useAppStore((state) => state.setOriginalImage);
   const clearOriginalImage = useAppStore((state) => state.clearOriginalImage);
+  const setGeneratedLook = useAppStore((state) => state.setGeneratedLook);
   const setToast = useAppStore((state) => state.setToast);
   const openSettings = useAppStore((state) => state.openSettings);
   const closeSettings = useAppStore((state) => state.closeSettings);
@@ -263,6 +264,12 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
     camera.resetVisionState();
   }
 
+  function handleEditLook(image) {
+    setGeneratedLook({ image, style: null, analysisResult: null });
+    closeSettings();
+    setView('refine');
+  }
+
   async function handleSignOut() {
     camera.stopCamera();
 
@@ -377,6 +384,7 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
         }}
         onDeleteAccount={handleDeleteAccount}
         onSignOut={handleSignOut}
+        onEditLook={handleEditLook}
       />
 
       <EditProfileModal

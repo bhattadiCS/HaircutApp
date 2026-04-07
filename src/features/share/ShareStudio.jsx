@@ -215,7 +215,7 @@ export default function ShareStudio({
               <DollarSign className="h-4 w-4" />
               Est. Cost
             </div>
-            <div className="text-xl font-semibold text-white">$120 - $180</div>
+            <div className="text-xl font-semibold text-white">{selectedStyle?.estimatedCost || '$80 - $150'}</div>
           </div>
 
           <div className="glass-panel rounded-3xl p-4">
@@ -224,17 +224,28 @@ export default function ShareStudio({
               Maintenance
             </div>
             <div className="text-xl font-semibold text-white">
-              {selectedStyle?.maintenance}
+              {selectedStyle?.maintenance || 'Medium'}
             </div>
           </div>
         </div>
 
-        <div className="glass-panel rounded-3xl p-4">
-          <div className="mb-2 text-xs uppercase tracking-[0.22em] text-white/45">
-            Balance Score
+        <div className="glass-panel rounded-2xl p-4 bg-white/5 border border-white/10">
+          <p className="text-xs leading-relaxed text-white/60">
+            <strong className="text-white/80 font-medium">Pricing & Upkeep:</strong> This {selectedStyle?.maintenance?.toLowerCase() || 'medium'} maintenance style averages {selectedStyle?.estimatedCost || '$80 - $150'} depending on your local market and salon tier. Expect to visit your stylist every {
+              selectedStyle?.maintenance === 'Low' ? '6-8' : selectedStyle?.maintenance === 'High' ? '3-4' : '4-6'
+            } weeks to preserve the shape and texture.
+          </p>
+        </div>
+
+        <div className="glass-panel rounded-3xl p-4 flex items-center justify-between">
+          <div>
+            <div className="mb-1 text-xs uppercase tracking-[0.22em] text-cyan-200/80">
+              Balance Score
+            </div>
+            <div className="text-xs text-white/50">Overall harmony scale</div>
           </div>
-          <div className="text-xl font-semibold text-white">
-            {analysisResult?.goldenRatioScore ?? 82}/100
+          <div className="text-2xl font-bold text-cyan-50">
+            {analysisResult?.goldenRatioScore ?? 82}<span className="text-base text-cyan-100/50">/100</span>
           </div>
         </div>
       </div>

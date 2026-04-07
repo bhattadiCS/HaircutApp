@@ -23,6 +23,7 @@ export default function SettingsSheet({
   onOpenEditProfile,
   onDeleteAccount,
   onSignOut,
+  onEditLook,
 }) {
   const loadProgress = Math.round(aiRuntime.loadProgress ?? 0);
   const isWarming = aiRuntime.status === 'warming';
@@ -225,8 +226,21 @@ export default function SettingsSheet({
                 )}
 
                 {selectedHistoryImage ? (
-                  <div className="mt-4 overflow-hidden rounded-2xl border border-white/10">
+                  <div className="mt-4 flex flex-col overflow-hidden rounded-2xl border border-white/10">
                     <img src={selectedHistoryImage} alt="Selected saved look preview" className="h-56 w-full object-cover" />
+                    <div className="bg-white/5 p-3">
+                      <HapticButton
+                        variant="secondary"
+                        className="w-full text-cyan-50 border-cyan-500/20 hover:bg-cyan-500/10"
+                        onClick={() => {
+                          if (typeof onEditLook === 'function') {
+                            onEditLook(selectedHistoryImage);
+                          }
+                        }}
+                      >
+                        Edit This Look
+                      </HapticButton>
+                    </div>
                   </div>
                 ) : null}
                 </div>

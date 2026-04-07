@@ -28,7 +28,7 @@ function shouldPreferRedirectSignIn() {
     globalThis.navigator?.standalone === true ||
     globalThis.matchMedia?.('(display-mode: standalone)').matches === true;
 
-  return isStandalone || (isIOS && isSafari);
+  return isStandalone;
 }
 export function useAuthBootstrap() {
   const user = useAppStore((state) => state.user);

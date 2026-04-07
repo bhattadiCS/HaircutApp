@@ -270,6 +270,7 @@ const MirrorMode = ({
                 <input
                   type="file"
                   accept="image/*"
+                  capture="user"
                   className="hidden"
                   onChange={onImageUpload}
                   aria-label="Upload portrait"

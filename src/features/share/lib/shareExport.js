@@ -18,6 +18,28 @@ function getShareFilename(selectedStyle) {
   return `styleshift-${selectedStyle?.id || 'preview'}.png`;
 }
 
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  let cursorY = y;
+
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + ' ';
+    const metrics = context.measureText(testLine);
+    const testWidth = metrics.width;
+    
+    if (testWidth > maxWidth && n > 0) {
+      context.fillText(line, x, cursorY);
+      line = words[n] + ' ';
+      cursorY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  context.fillText(line, x, cursorY);
+  return cursorY + lineHeight;
+}
+
 export function supportsFileShare() {
   if (
     typeof navigator === 'undefined' ||
@@ -124,17 +146,19 @@ export async function createShareCardBlob({
     analysisResult?.barberBrief ||
     'Section at the parietal ridge, preserve weight through the top, and finish with a soft perimeter.';
   const summary = analysisResult?.technicalSummary || 'Local concierge preview exported from StyleShift.';
-  const lines = [barberBrief, summary];
+
+  let cursorY = 1330;
+  
+  cursorY = wrapText(context, barberBrief, 110, cursorY, 1380, 42);
+  cursorY += 10;
+  
+  context.fillStyle = 'rgba(248,250,252,0.55)';
+  cursorY = wrapText(context, summary, 110, cursorY, 1380, 42);
 
   if (refinementNote) {
-    lines.push(`Requested adjustment: ${refinementNote}.`);
-  }
-
-  let cursorY = 1340;
-
-  for (const line of lines) {
-    context.fillText(line.slice(0, 92), 110, cursorY);
-    cursorY += 54;
+    cursorY += 15;
+    context.fillStyle = '#FDE68A';
+    cursorY = wrapText(context, `Requested adjustment: ${refinementNote}`, 110, cursorY, 1380, 42);
   }
 
   context.font = '600 28px Outfit';
