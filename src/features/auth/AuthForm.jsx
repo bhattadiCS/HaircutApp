@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import {
+  auth,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from '../../firebase';
+import {
   getFirebaseConfigSetupMessage,
   isMissingFirebaseConfigError,
 } from '../../lib/firebaseConfig';
-
-let firebaseModulePromise;
-
-function loadFirebaseModule() {
-  firebaseModulePromise ??= import('../../firebaseAuth');
-  return firebaseModulePromise;
-}
 
 function formatAuthErrorMessage(error) {
   if (isMissingFirebaseConfigError(error)) {
@@ -35,29 +35,6 @@ const AuthForm = ({ onLogin }) => {
     setError('');
 
     try {
-      const module = await loadFirebaseModule();
-      
-      if (!module) {
-        throw new Error('Could not load authentication module.');
-      }
-
-      const {
-        auth,
-        createUserWithEmailAndPassword,
-        signInWithEmailAndPassword,
-        updateProfile,
-      } = module;
-
-      if (!auth || !signInWithEmailAndPassword || !createUserWithEmailAndPassword || !updateProfile) {
-        console.error('Auth module missing required functions:', { 
-          auth: !!auth, 
-          signIn: !!signInWithEmailAndPassword, 
-          create: !!createUserWithEmailAndPassword,
-          update: !!updateProfile 
-        });
-        throw new Error('Authentication system is initializing. Please try again in a moment.');
-      }
-
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
@@ -87,7 +64,6 @@ const AuthForm = ({ onLogin }) => {
       return;
     }
     try {
-      const { auth, sendPasswordResetEmail } = await loadFirebaseModule();
       await sendPasswordResetEmail(auth, email);
       setResetSent(true);
       setError('');

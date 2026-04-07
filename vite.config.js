@@ -2,7 +2,10 @@ import process from 'node:process'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import { getMissingFirebaseConfigKeys } from './src/lib/firebaseConfig'
+import {
+  getFirebaseBuildGuardMessage,
+  getMissingFirebaseConfigKeys,
+} from './src/lib/firebaseConfig'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,10 +15,7 @@ export default defineConfig(({ mode }) => {
   const shouldRequireFirebaseConfig = mode === 'production' && env.VITE_USE_FIREBASE_EMULATORS !== 'true'
 
   if (shouldRequireFirebaseConfig && missingFirebaseConfigKeys.length > 0) {
-    console.warn(
-      `Building without Firebase env vars: ${missingFirebaseConfigKeys.join(', ')}. ` +
-      'The app will deploy, but Firebase-backed login will remain unavailable until those values are configured.',
-    )
+    throw new Error(getFirebaseBuildGuardMessage(missingFirebaseConfigKeys))
   }
 
   return {

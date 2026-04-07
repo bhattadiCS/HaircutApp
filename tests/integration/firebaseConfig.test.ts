@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createMissingFirebaseConfigError,
   getFirebaseConfigSetupMessage,
+  getFirebaseBuildGuardMessage,
   getMissingFirebaseConfigKeys,
   isMissingFirebaseConfigError,
   REQUIRED_FIREBASE_CONFIG_KEYS,
@@ -28,9 +30,16 @@ describe('firebase config helpers', () => {
   });
 
   it('detects runtime Firebase config errors', () => {
-    const error = new Error('Missing required Firebase configuration: VITE_FIREBASE_API_KEY');
+    const error = createMissingFirebaseConfigError(['VITE_FIREBASE_API_KEY']);
 
     expect(isMissingFirebaseConfigError(error)).toBe(true);
-    expect(getFirebaseConfigSetupMessage()).toContain('VITE_FIREBASE_*');
+    expect(error.message).toContain('VITE_FIREBASE_API_KEY');
+    expect(getFirebaseConfigSetupMessage()).toContain('GitHub Actions repository secrets');
+  });
+
+  it('formats a production build guard message with the missing secret names', () => {
+    expect(getFirebaseBuildGuardMessage(['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_APP_ID'])).toContain(
+      'VITE_FIREBASE_API_KEY, VITE_FIREBASE_APP_ID',
+    );
   });
 });

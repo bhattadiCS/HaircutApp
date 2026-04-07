@@ -1,4 +1,15 @@
 import { useEffect } from 'react';
+import {
+  auth,
+  db,
+  doc,
+  getRedirectResult,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  setDoc,
+  signInWithPopup,
+  signInWithRedirect,
+} from '../../../firebase';
 import { useProfileSync } from '../../profile/hooks/useProfileSync';
 import { useAppStore } from '../../../store/useAppStore';
 import {
@@ -6,27 +17,21 @@ import {
   isMissingFirebaseConfigError,
 } from '../../../lib/firebaseConfig';
 
-let firebaseModulePromise;
-let firestoreModulePromise;
-
-function loadFirebaseModule() {
-  firebaseModulePromise ??= import('../../../firebaseAuth');
-  return firebaseModulePromise;
-}
-
-function loadFirestoreModule() {
-  firestoreModulePromise ??= import('../../../firebaseFirestore');
-  return firestoreModulePromise;
-}
-
 function shouldPreferRedirectSignIn() {
   const userAgent = globalThis.navigator?.userAgent || '';
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
+  const platform = globalThis.navigator?.platform || '';
+  const touchPoints = Number(globalThis.navigator?.maxTouchPoints || 0);
+  const isIOS = /iPhone|iPad|iPod/i.test(userAgent) || (/Mac/i.test(platform) && touchPoints > 1);
+  const isSafari = /Safari/i.test(userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(userAgent);
   const isStandalone =
     globalThis.navigator?.standalone === true ||
     globalThis.matchMedia?.('(display-mode: standalone)').matches === true;
 
-  return isMobile || isStandalone;
+  return isStandalone || (isIOS && isSafari);
+}
+
+function getAuthenticatedView() {
+  return useAppStore.getState().userVibe ? 'mirror' : 'quiz';
 }
 
 function getGoogleAuthErrorMessage(error) {
@@ -48,8 +53,6 @@ function getGoogleAuthErrorMessage(error) {
 
 export function useAuthBootstrap() {
   const user = useAppStore((state) => state.user);
-  const userVibe = useAppStore((state) => state.userVibe);
-  const view = useAppStore((state) => state.view);
   const setUser = useAppStore((state) => state.setUser);
   const setView = useAppStore((state) => state.setView);
   const setUserVibe = useAppStore((state) => state.setUserVibe);
@@ -57,47 +60,50 @@ export function useAuthBootstrap() {
   const setProcessing = useAppStore((state) => state.setProcessing);
   const signOutReset = useAppStore((state) => state.signOutReset);
 
-  const shouldSyncProfile = Boolean(user) && !['auth', 'quiz', 'mirror', 'magic'].includes(view);
-
-  useProfileSync(shouldSyncProfile ? user : null);
+  useProfileSync(user);
 
   useEffect(() => {
     let isCancelled = false;
     let unsubscribe = () => {};
 
-    loadFirebaseModule()
-      .then(async ({ auth, onAuthStateChanged, getRedirectResult }) => {
-        if (isCancelled) {
-          return;
-        }
+    const bootstrapAuth = async () => {
+      try {
+        const result = await getRedirectResult(auth);
 
-        // Handle redirect result if coming back from Google Sign-In on mobile
-        try {
-          const result = await getRedirectResult(auth);
-          if (result?.user) {
-            setUser(result.user);
-            setView(userVibe ? 'mirror' : 'quiz');
-          }
-        } catch (error) {
+        if (!isCancelled && result?.user) {
+          setUser(result.user);
+          setView(getAuthenticatedView());
+        }
+      } catch (error) {
+        if (!isCancelled) {
           console.error('Redirect auth error:', error);
           setToast({
-            message: 'Sign-in failed. Please try again.',
+            message: getGoogleAuthErrorMessage(error),
             type: 'error',
           });
         }
+      }
 
+      if (isCancelled) {
+        return;
+      }
+
+      try {
         unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+          if (isCancelled) {
+            return;
+          }
+
           if (nextUser) {
             setUser(nextUser);
-            setView(userVibe ? 'mirror' : 'quiz');
+            setView(getAuthenticatedView());
             return;
           }
 
           signOutReset();
         });
-      })
-      .catch((error) => {
-        if (isMissingFirebaseConfigError(error)) {
+      } catch (error) {
+        if (!isCancelled && isMissingFirebaseConfigError(error)) {
           setToast({
             message: getFirebaseConfigSetupMessage(),
             type: 'error',
@@ -105,24 +111,27 @@ export function useAuthBootstrap() {
         }
 
         signOutReset();
-      });
+      }
+    };
+
+    bootstrapAuth();
 
     return () => {
       isCancelled = true;
       unsubscribe();
     };
-  }, [setToast, signOutReset, setUser, setView, userVibe]);
+  }, [setToast, signOutReset, setUser, setView]);
 
   async function loginWithGoogle() {
     setProcessing(true, 'Opening secure sign-in...');
 
     try {
-      const { auth, GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await loadFirebaseModule();
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters?.({ prompt: 'select_account' });
 
       if (shouldPreferRedirectSignIn()) {
         await signInWithRedirect(auth, provider);
+        return;
       } else {
         try {
           await signInWithPopup(auth, provider);
@@ -157,8 +166,6 @@ export function useAuthBootstrap() {
     setUserVibe(vibeId);
     setView('mirror');
 
-    const { auth } = await loadFirebaseModule();
-
     if (typeof auth.authStateReady === 'function') {
       await auth.authStateReady();
     }
@@ -173,8 +180,6 @@ export function useAuthBootstrap() {
       if (typeof activeUser.getIdToken === 'function') {
         await activeUser.getIdToken();
       }
-
-      const { db, doc, setDoc } = await loadFirestoreModule();
 
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
