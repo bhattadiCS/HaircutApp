@@ -1,32 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, Clock, Download, DollarSign, Share2, Sparkles } from 'lucide-react';
 import { motion as Motion } from 'framer-motion';
 import HapticButton from '../../components/HapticButton';
 import { BUTTON_SPRING } from '../../Constants';
-import { drawFocusedCover } from '../vision/lib/faceFocus';
-
-function loadShareImage(source) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-
-    if (!source.startsWith('data:')) {
-      image.crossOrigin = 'anonymous';
-    }
-
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('One of the preview images could not be prepared for export.'));
-    image.src = source;
-  });
-}
-
-function downloadBlob(blob, filename) {
-  const blobUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = blobUrl;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(blobUrl);
-}
+import {
+  buildShareRequest,
+  createShareCardBlob,
+  createShareCardFile,
+  downloadBlob,
+  getShareFilenameForDownload,
+  supportsFileShare,
+} from './lib/shareExport';
 
 export default function ShareStudio({
   selectedStyle,
@@ -35,96 +19,100 @@ export default function ShareStudio({
   originalFaceFocus,
   originalImageStyle,
   analysisResult,
+  refinementNote,
   onBack,
-  onShare,
+  onShareLink,
 }) {
   const [downloadStatus, setDownloadStatus] = useState('idle');
+  const [shareStatus, setShareStatus] = useState('idle');
   const supportsNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const canShareNativeFiles = useMemo(() => supportsFileShare(), []);
+  const shareButtonLabel = supportsNativeShare
+    ? canShareNativeFiles
+      ? 'Share Image'
+      : 'Share Link'
+    : 'Copy Link';
+
+  const shareTitle = selectedStyle?.name ? `${selectedStyle.name} | StyleShift` : 'StyleShift Preview';
+  const shareText = refinementNote
+    ? `StyleShift consultation card. Requested adjustment: ${refinementNote}.`
+    : 'StyleShift consultation card exported locally.';
+
+  async function handleShare() {
+    setShareStatus('working');
+
+    try {
+      if (supportsNativeShare) {
+        if (canShareNativeFiles) {
+          const file = await createShareCardFile({
+            analysisResult,
+            generatedImage,
+            originalFaceFocus,
+            originalImage,
+            refinementNote,
+            selectedStyle,
+          });
+
+          await navigator.share(
+            buildShareRequest({
+              file,
+              shareUrl: window.location.href,
+              title: shareTitle,
+              text: shareText,
+              supportsNativeFileShare: true,
+            }),
+          );
+        } else {
+          await navigator.share(
+            buildShareRequest({
+              shareUrl: window.location.href,
+              title: shareTitle,
+              text: shareText,
+              supportsNativeFileShare: false,
+            }),
+          );
+        }
+      } else {
+        await onShareLink?.();
+      }
+
+      setShareStatus('done');
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        setShareStatus('idle');
+        return;
+      }
+
+      console.error('Share failed:', error);
+
+      if (supportsNativeShare && canShareNativeFiles) {
+        try {
+          await onShareLink?.();
+          setShareStatus('done');
+          return;
+        } catch {
+          // Fall through to the shared error state.
+        }
+      }
+
+      setShareStatus('error');
+    }
+  }
 
   async function handleDownloadPng() {
     setDownloadStatus('working');
 
     try {
-      const [beforeImage, afterImage] = await Promise.all([
-        loadShareImage(originalImage),
-        loadShareImage(generatedImage),
-      ]);
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-
-      if (!context) {
-        throw new Error('Canvas export is unavailable in this browser.');
-      }
-
-      canvas.width = 1600;
-      canvas.height = 2000;
-
-      const background = context.createLinearGradient(0, 0, 0, canvas.height);
-      background.addColorStop(0, '#020617');
-      background.addColorStop(1, '#111827');
-      context.fillStyle = background;
-      context.fillRect(0, 0, canvas.width, canvas.height);
-
-      context.fillStyle = 'rgba(255,255,255,0.08)';
-      context.fillRect(60, 80, 1480, 1840);
-
-      drawFocusedCover(
-        context,
-        beforeImage,
-        { x: 110, y: 170, width: 650, height: 980 },
+      const blob = await createShareCardBlob({
+        analysisResult,
+        generatedImage,
         originalFaceFocus,
-      );
-      drawFocusedCover(
-        context,
-        afterImage,
-        { x: 840, y: 170, width: 650, height: 980 },
-        null,
-      );
-
-      context.fillStyle = 'rgba(2, 6, 23, 0.72)';
-      context.fillRect(110, 1030, 1380, 120);
-      context.fillStyle = '#F8FAFC';
-      context.font = '700 72px Outfit';
-      context.fillText(selectedStyle?.name || 'StyleShift Preview', 110, 1105);
-      context.font = '400 28px Outfit';
-      context.fillStyle = 'rgba(248,250,252,0.78)';
-      context.fillText('Before and after consultation preview', 110, 1148);
-
-      context.fillStyle = '#F8FAFC';
-      context.font = '600 34px Outfit';
-      context.fillText('Barber Brief', 110, 1285);
-      context.font = '400 28px Outfit';
-      context.fillStyle = 'rgba(248,250,252,0.78)';
-
-      const barberBrief =
-        analysisResult?.barberBrief ||
-        'Section at the parietal ridge, preserve weight through the top, and finish with a soft perimeter.';
-      const summary = analysisResult?.technicalSummary || 'Local concierge preview exported from StyleShift.';
-      const lines = [barberBrief, summary];
-      let cursorY = 1340;
-
-      for (const line of lines) {
-        context.fillText(line.slice(0, 92), 110, cursorY);
-        cursorY += 54;
-      }
-
-      context.font = '600 28px Outfit';
-      context.fillStyle = '#FCD34D';
-      context.fillText(`Maintenance: ${selectedStyle?.maintenance || 'Low'}`, 110, 1545);
-      context.fillStyle = '#67E8F9';
-      context.fillText(`Balance Score: ${analysisResult?.goldenRatioScore ?? 82}/100`, 650, 1545);
-      context.fillStyle = '#E2E8F0';
-      context.fillText('StyleShift', 1280, 1545);
-
-      const blob = await new Promise((resolve) => {
-        canvas.toBlob(resolve, 'image/png');
+        originalImage,
+        refinementNote,
+        selectedStyle,
       });
 
-      if (!blob) {
-        throw new Error('The preview card could not be converted to PNG.');
-      }
-
-      downloadBlob(blob, `styleshift-${selectedStyle?.id || 'preview'}.png`);
+      downloadBlob(blob, getShareFilenameForDownload(selectedStyle));
       setDownloadStatus('done');
     } catch (error) {
       console.error('PNG export failed:', error);
@@ -213,6 +201,12 @@ export default function ShareStudio({
               {analysisResult.previewDescriptor.summary}
             </p>
           ) : null}
+
+          {refinementNote ? (
+            <p className="mt-3 text-xs leading-relaxed text-amber-100/75">
+              Requested adjustment: {refinementNote}
+            </p>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -246,35 +240,44 @@ export default function ShareStudio({
       </div>
 
       <div className="mt-6 grid gap-3">
-        {supportsNativeShare ? (
-          <HapticButton className="flex w-full items-center justify-center gap-2" onClick={onShare}>
-            <Share2 className="h-5 w-5" /> Share Preview
-          </HapticButton>
-        ) : (
-          <Motion.button
-            type="button"
-            transition={BUTTON_SPRING}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleDownloadPng}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 font-semibold text-slate-950"
-          >
-            <Download className="h-5 w-5" />
-            {downloadStatus === 'working'
-              ? 'Building PNG...'
-              : downloadStatus === 'done'
-                ? 'PNG Downloaded'
-                : downloadStatus === 'error'
-                  ? 'Retry Download PNG'
-                  : 'Download PNG'}
-          </Motion.button>
-        )}
+        <HapticButton className="flex w-full items-center justify-center gap-2" onClick={handleShare}>
+          <Share2 className="h-5 w-5" />
+          {shareStatus === 'working'
+            ? 'Preparing Share...'
+            : shareStatus === 'done'
+              ? canShareNativeFiles
+                ? 'Image Shared'
+                : 'Link Shared'
+              : shareStatus === 'error'
+                ? `Retry ${shareButtonLabel}`
+                : shareButtonLabel}
+        </HapticButton>
 
-        {!supportsNativeShare ? (
-          <p className="text-center text-xs text-white/45">
-            Native sharing is unavailable here, so the consultation card exports as a PNG instead.
-          </p>
-        ) : null}
+        <Motion.button
+          type="button"
+          transition={BUTTON_SPRING}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleDownloadPng}
+          className="flex w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.08] px-6 py-3 font-semibold text-white backdrop-blur-xl"
+        >
+          <Download className="h-5 w-5" />
+          {downloadStatus === 'working'
+            ? 'Building PNG...'
+            : downloadStatus === 'done'
+              ? 'PNG Downloaded'
+              : downloadStatus === 'error'
+                ? 'Retry Download PNG'
+                : 'Download PNG'}
+        </Motion.button>
+
+        <p className="text-center text-xs text-white/45">
+          {supportsNativeShare && canShareNativeFiles
+            ? 'On supported devices the share sheet receives the exported consultation card as an image file.'
+            : supportsNativeShare
+              ? 'This browser can only share a link, so use Download PNG for the image file.'
+              : 'Native sharing is unavailable here, so copy the link and use Download PNG for the image file.'}
+        </p>
       </div>
     </Motion.div>
   );

@@ -24,8 +24,9 @@ export default function RefineStudio({
   originalImageStyle,
   analysisResult,
   onBack,
-  onOpenShare,
+  onContinueToShare,
   onRefine,
+  refinementNote,
 }) {
   const [isComparing, setIsComparing] = useState(false);
   const activeImage = isComparing ? originalImage : generatedImage;
@@ -62,9 +63,9 @@ export default function RefineStudio({
         <HapticButton
           variant="primary"
           className="px-4 py-2 text-sm"
-          onClick={onOpenShare}
+          onClick={onContinueToShare}
         >
-          Save
+          Continue to Share
         </HapticButton>
       </div>
 
@@ -107,19 +108,40 @@ export default function RefineStudio({
         </div>
       ) : null}
 
-      <div className="flex items-center gap-2 overflow-x-auto border-t border-white/5 bg-black/40 px-4 py-3 backdrop-blur-sm">
-        {smartSuggestions.map((suggestion) => (
-          <Motion.button
-            key={suggestion}
-            transition={BUTTON_SPRING}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => onRefine(suggestion)}
-            className="glass-chip whitespace-nowrap rounded-full px-4 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
-          >
-            {suggestion}
-          </Motion.button>
-        ))}
+      <div className="mx-4 mt-4 rounded-[1.7rem] border border-white/10 bg-white/[0.03] px-5 py-4">
+        <div className="mb-2 text-xs uppercase tracking-[0.24em] text-white/45">
+          Export Note
+        </div>
+        <p className="text-sm leading-relaxed text-white/72">
+          {refinementNote
+            ? `Requested adjustment: ${refinementNote}. This note is added to the export and does not change the preview image.`
+            : 'Add a note below if you want the exported brief to call out a specific adjustment. These presets do not re-render the preview.'}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3 border-t border-white/5 bg-black/40 px-4 py-3 backdrop-blur-sm">
+        <div className="text-xs uppercase tracking-[0.26em] text-white/45">
+          Quick Notes
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {smartSuggestions.map((suggestion) => {
+            const isActive = refinementNote === suggestion;
+
+            return (
+              <Motion.button
+                key={suggestion}
+                transition={BUTTON_SPRING}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => onRefine(suggestion)}
+                className={`glass-chip whitespace-nowrap rounded-full px-4 py-1.5 text-sm transition-colors ${isActive ? 'border-cyan-300/45 bg-cyan-300/15 text-cyan-50' : 'text-white hover:bg-white/20'}`}
+              >
+                {suggestion}
+              </Motion.button>
+            );
+          })}
+        </div>
       </div>
 
       <div
@@ -127,25 +149,29 @@ export default function RefineStudio({
         style={{ paddingBottom: 'calc(var(--safe-area-bottom) + 1.5rem)' }}
       >
         <div className="mb-6 text-xs uppercase tracking-[0.26em] text-white/45">
-          Refinement Suite
+          Note Presets
         </div>
 
         <div className="flex justify-between gap-4">
-          {refinementTools.map((tool) => (
-            <Motion.button
-              key={tool.label}
-              transition={BUTTON_SPRING}
-              whileHover={{ scale: 1.06 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => onRefine(tool.label)}
-              className="flex flex-col items-center gap-2"
-            >
-              <div className="glass-panel flex h-14 w-14 items-center justify-center rounded-2xl transition-colors hover:bg-white/[0.12]">
-                <tool.icon className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xs text-white/60">{tool.label}</span>
-            </Motion.button>
-          ))}
+          {refinementTools.map((tool) => {
+            const isActive = refinementNote === tool.label;
+
+            return (
+              <Motion.button
+                key={tool.label}
+                transition={BUTTON_SPRING}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => onRefine(tool.label)}
+                className="flex flex-col items-center gap-2"
+              >
+                <div className={`glass-panel flex h-14 w-14 items-center justify-center rounded-2xl transition-colors ${isActive ? 'border-cyan-300/45 bg-cyan-300/15' : 'hover:bg-white/[0.12]'}`}>
+                  <tool.icon className={`h-6 w-6 ${isActive ? 'text-cyan-50' : 'text-white'}`} />
+                </div>
+                <span className={`text-xs ${isActive ? 'text-cyan-50' : 'text-white/60'}`}>{tool.label}</span>
+              </Motion.button>
+            );
+          })}
         </div>
       </div>
     </Motion.div>

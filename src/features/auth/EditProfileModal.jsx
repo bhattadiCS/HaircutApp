@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, X, ChevronRight } from 'lucide-react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { auth, storage, updateProfile, ref, uploadBytes, getDownloadURL } from '../../firebase';
+import {
+  auth,
+  db,
+  doc,
+  getDownloadURL,
+  ref,
+  setDoc,
+  storage,
+  updateProfile,
+  uploadBytes,
+} from '../../firebase';
 import { useAppStore } from '../../store/useAppStore';
 
 function readFileAsDataUrl(file) {
@@ -14,24 +24,63 @@ function readFileAsDataUrl(file) {
   });
 }
 
-const EditProfileModal = ({ isOpen, onClose, user, onUpdateUser }) => {
-  const [name, setName] = useState(user?.displayName || '');
-  const [bio, setBio] = useState('Style enthusiast');
+const EditProfileModal = ({ isOpen, onClose, user, userProfile, onUpdateUser, onUpdateProfile }) => {
+  const [name, setName] = useState(user?.displayName || userProfile?.displayName || '');
+  const [bio, setBio] = useState(userProfile?.bio || '');
+  const [photoUrl, setPhotoUrl] = useState(user?.photoURL || userProfile?.photoURL || '');
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
   const localOnlyMode = useAppStore((state) => state.localOnlyMode);
 
   useEffect(() => {
-    setName(user?.displayName || '');
-  }, [user]);
+    if (!isOpen) {
+      return;
+    }
+
+    setName(user?.displayName || userProfile?.displayName || '');
+    setBio(userProfile?.bio || '');
+    setPhotoUrl(user?.photoURL || userProfile?.photoURL || '');
+  }, [isOpen, user, userProfile]);
+
+  function buildProfileDraft(overrides = {}) {
+    return {
+      ...(userProfile || {}),
+      uid: user?.uid,
+      email: user?.email || userProfile?.email || '',
+      displayName: name,
+      bio,
+      photoURL: photoUrl,
+      ...overrides,
+    };
+  }
 
   const handleSave = async () => {
+    if (!user?.uid) {
+      return;
+    }
+
     setLoading(true);
+
     try {
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName: name });
       }
-      onUpdateUser({ ...user, displayName: name });
+
+      const nextProfile = buildProfileDraft();
+      await setDoc(
+        doc(db, 'users', user.uid),
+        {
+          uid: user.uid,
+          email: nextProfile.email,
+          displayName: nextProfile.displayName,
+          bio: nextProfile.bio,
+          photoURL: nextProfile.photoURL,
+        },
+        { merge: true },
+      );
+
+      onUpdateUser({ ...user, displayName: name, photoURL: nextProfile.photoURL || user?.photoURL || '' });
+      onUpdateProfile?.(nextProfile);
       onClose();
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -54,13 +103,27 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdateUser }) => {
         await uploadBytes(storageRef, file);
         url = await getDownloadURL(storageRef);
         await updateProfile(auth.currentUser, { photoURL: url });
+        await setDoc(
+          doc(db, 'users', user.uid),
+          {
+            uid: user.uid,
+            email: user?.email || userProfile?.email || '',
+            displayName: name,
+            photoURL: url,
+          },
+          { merge: true },
+        );
       }
 
+      setPhotoUrl(url);
       onUpdateUser({ ...user, photoURL: url });
+      onUpdateProfile?.(buildProfileDraft({ photoURL: url }));
     } catch (error) {
       console.error("Upload failed, using local preview", error);
       const url = await readFileAsDataUrl(file);
+      setPhotoUrl(url);
       onUpdateUser({ ...user, photoURL: url });
+      onUpdateProfile?.(buildProfileDraft({ photoURL: url }));
     } finally {
       setLoading(false);
     }
@@ -81,7 +144,7 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdateUser }) => {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="flex h-[85vh] w-full flex-col overflow-hidden rounded-t-xl bg-zinc-900 md:h-auto md:max-w-md md:rounded-xl"
+            className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-xl bg-zinc-900 md:max-h-[80vh] md:max-w-md md:rounded-xl"
             style={{ paddingBottom: 'max(0.75rem, var(--safe-area-bottom))' }}
             role="dialog"
             aria-modal="true"
@@ -104,9 +167,9 @@ const EditProfileModal = ({ isOpen, onClose, user, onUpdateUser }) => {
             <div className="p-6 flex flex-col items-center gap-4 overflow-y-auto">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-24 h-24 rounded-full overflow-hidden border border-white/10">
-                  {user?.photoURL ? (
+                  {photoUrl ? (
                     <img
-                      src={user.photoURL}
+                      src={photoUrl}
                       alt="Profile avatar"
                       className="w-full h-full object-cover"
                     />

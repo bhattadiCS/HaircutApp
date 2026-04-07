@@ -39,6 +39,7 @@ export function useStudioGeneration({ aiRuntime, getVisionSnapshot }) {
   const setView = useAppStore((state) => state.setView);
   const setProcessing = useAppStore((state) => state.setProcessing);
   const setProcessStep = useAppStore((state) => state.setProcessStep);
+  const setRefinementNote = useAppStore((state) => state.setRefinementNote);
   const setGeneratedLook = useAppStore((state) => state.setGeneratedLook);
   const setToast = useAppStore((state) => state.setToast);
   const activeGenerationRef = useRef(null);
@@ -184,11 +185,11 @@ export function useStudioGeneration({ aiRuntime, getVisionSnapshot }) {
   }
 
   function handleRefine(modifier) {
-    setToast({ message: `Applying ${modifier}...`, type: 'info' });
-
-    window.setTimeout(() => {
-      setToast({ message: 'Update applied!', type: 'success' });
-    }, 900);
+    setRefinementNote(modifier);
+    setToast({
+      message: `"${modifier}" added to the barber note. The preview image stays the same.`,
+      type: 'success',
+    });
   }
 
   return {

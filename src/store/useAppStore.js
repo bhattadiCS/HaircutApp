@@ -11,9 +11,22 @@ export const useAppStore = create(
       ...createStudioSlice(set, get, ...args),
       ...createVisualSlice(set, get, ...args),
       signOutReset: () => {
-        const { setUser, setUserProfile, setView, resetStudioSession } = get();
+        const {
+          clearToast,
+          closeEditProfile,
+          closeSettings,
+          resetStudioSession,
+          setUser,
+          setUserProfile,
+          setUserVibe,
+          setView,
+        } = get();
+        clearToast();
+        closeSettings();
+        closeEditProfile();
         setUser(null);
         setUserProfile(null);
+        setUserVibe(null);
         setView('auth');
         resetStudioSession();
       },

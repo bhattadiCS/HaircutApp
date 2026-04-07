@@ -281,7 +281,6 @@ const MirrorMode = ({
               </label>
             )}
 
-                type="button"
             <Motion.button
               type="button"
               transition={BUTTON_SPRING}

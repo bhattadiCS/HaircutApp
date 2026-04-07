@@ -6,7 +6,7 @@ import {
   disposeFirebaseTestClient,
   signInFirebaseTestClient,
 } from '../support/firebaseClient';
-import { getAdminDb } from '../support/firebaseAdmin';
+import { getAdminAuth, getAdminDb } from '../support/firebaseAdmin';
 import { provisionUserProfile } from '../support/profileSeeder';
 
 async function waitForState(assertion, timeout = 5_000) {
@@ -122,6 +122,86 @@ describe('useProfileSync', () => {
         expect(state.userVibe).toBe('flow');
         expect(state.userProfile?.occupation).toBe('Creative/Musician');
         expect(state.history[0]).toBe('https://styleshift.local/history/seed-b.png');
+      });
+    } finally {
+      stopSync();
+      await disposeFirebaseTestClient(client);
+    }
+  });
+
+  test('routes a user without a saved vibe to quiz and clears stale vibe state', async () => {
+    const profile = buildUserProfile({ vibe: 'street' });
+    const adminAuth = getAdminAuth();
+
+    try {
+      await adminAuth.createUser({
+        uid: profile.uid,
+        email: profile.email,
+        password: profile.password,
+        displayName: profile.displayName,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+
+      if (!message.includes('uid-already-exists') && !message.includes('email-already-exists')) {
+        throw error;
+      }
+    }
+
+    await getAdminDb().collection('users').doc(profile.uid).set(
+      {
+        uid: profile.uid,
+        displayName: profile.displayName,
+        email: profile.email,
+        bio: profile.bio,
+      },
+      { merge: true },
+    );
+
+    const client = await signInFirebaseTestClient(profile, `styleshift-test-${crypto.randomUUID()}`);
+    const statusEvents = [];
+
+    useAppStore.setState(
+      {
+        ...useAppStore.getInitialState(),
+        user: {
+          uid: profile.uid,
+          email: profile.email,
+        },
+        userVibe: 'classic',
+        view: 'mirror',
+      },
+      true,
+    );
+
+    const stopSync = startProfileSync({
+      user: {
+        uid: profile.uid,
+        email: profile.email,
+      },
+      database: client.db,
+      onStatusChange: (nextStatus) => {
+        statusEvents.push(nextStatus);
+      },
+    });
+
+    try {
+      await waitForState(() => {
+        const lastStatus = statusEvents.at(-1);
+        expect(
+          lastStatus?.status === 'error'
+            ? `error:${lastStatus.error}`
+            : lastStatus?.status,
+        ).toBe('ready');
+      });
+
+      await waitForState(() => {
+        const state = useAppStore.getState();
+
+        expect(state.userProfile?.uid).toBe(profile.uid);
+        expect(state.userVibe).toBeNull();
+        expect(state.view).toBe('quiz');
+        expect(state.history).toEqual([]);
       });
     } finally {
       stopSync();

@@ -93,6 +93,14 @@ export const updateProfile = async (user, profile) => {
 };
 
 export const sendPasswordResetEmail = async () => undefined;
+export const deleteUser = async (user) => {
+    if (currentUser?.uid !== user?.uid) {
+        return;
+    }
+
+    currentUser = null;
+    notifyAuth();
+};
 
 export const signOut = async (_auth) => {
     currentUser = null;
@@ -173,6 +181,7 @@ const saveDB = (data) => {
 };
 
 export const getFirestore = () => ({});
+export const getFunctions = () => ({});
 
 export const doc = (db, ...pathSegments) => pathSegments.join('/');
 export const collection = (db, ...pathSegments) => pathSegments.join('/');
@@ -195,6 +204,13 @@ export const getDoc = async (path) => {
     const docData = data[path];
     return createDocSnapshot(path, docData);
 };
+export const getDocs = async (target) => {
+    if (typeof target === 'string') {
+        return resolveCollectionDocs(getDB(), target);
+    }
+
+    return resolveCollectionDocs(getDB(), target.path, target.constraints);
+};
 
 export const setDoc = async (path, content, options = {}) => {
     const data = getDB();
@@ -205,6 +221,11 @@ export const setDoc = async (path, content, options = {}) => {
 export const updateDoc = async (path, content) => {
     const data = getDB();
     data[path] = { ...(data[path] || {}), ...content };
+    saveDB(data);
+};
+export const deleteDoc = async (path) => {
+    const data = getDB();
+    delete data[path];
     saveDB(data);
 };
 
@@ -218,9 +239,46 @@ export const onSnapshot = (path, callback) => {
     return () => dbListeners.delete(listenerId);
 };
 
+export const httpsCallable = (_functions, name) => async (_payload) => {
+    if (name === 'deleteAccountCascade' && currentUser?.uid) {
+        const data = getDB();
+        const userPath = `users/${currentUser.uid}`;
+
+        Object.keys(data)
+            .filter((path) => path === userPath || path.startsWith(`${userPath}/`))
+            .forEach((path) => delete data[path]);
+
+        saveDB(data);
+        currentUser = null;
+        notifyAuth();
+    }
+
+    return { data: { ok: true } };
+};
+
+export const deleteAccountCascadeRequest = async (_payload) => {
+    if (!currentUser?.uid) {
+        return { ok: true };
+    }
+
+    const data = getDB();
+    const userPath = `users/${currentUser.uid}`;
+
+    Object.keys(data)
+        .filter((path) => path === userPath || path.startsWith(`${userPath}/`))
+        .forEach((path) => delete data[path]);
+
+    saveDB(data);
+    currentUser = null;
+    notifyAuth();
+
+    return { ok: true };
+};
+
 // --- Storage Mock ---
 export const getStorage = () => ({});
 export const ref = (_storage, path) => path;
 export const uploadBytes = async (storageRef, _blob) => ({ ref: storageRef });
 export const getDownloadURL = async () =>
     'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0" y1="0" x2="1" y2="1"%3E%3Cstop offset="0%25" stop-color="%23020617"/%3E%3Cstop offset="100%25" stop-color="%23111827"/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="512" height="512" rx="96" fill="url(%23g)"/%3E%3Ccircle cx="256" cy="200" r="96" fill="%23f8fafc" fill-opacity="0.92"/%3E%3Cpath d="M96 432c44-80 100-120 168-120s124 40 168 120" fill="%2367e8f9" fill-opacity="0.26"/%3E%3Ctext x="256" y="466" text-anchor="middle" fill="%23f8fafc" font-family="Segoe UI, Arial, sans-serif" font-size="38"%3EStyleShift Mock%3C/text%3E%3C/svg%3E';
+export const deleteObject = async () => undefined;

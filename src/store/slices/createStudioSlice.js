@@ -6,6 +6,7 @@ export const createStudioSlice = (set) => ({
   analysisResult: null,
   isProcessing: false,
   processStep: '',
+  refinementNote: '',
   history: [],
   historyIndex: -1,
   show360: false,
@@ -16,6 +17,7 @@ export const createStudioSlice = (set) => ({
       generatedImage: null,
       selectedStyle: null,
       analysisResult: null,
+      refinementNote: '',
     }),
   clearOriginalImage: () =>
     set({
@@ -23,17 +25,21 @@ export const createStudioSlice = (set) => ({
       generatedImage: null,
       selectedStyle: null,
       analysisResult: null,
+      refinementNote: '',
     }),
   setGeneratedLook: ({ image, style, analysisResult }) =>
     set((state) => ({
       generatedImage: image,
       selectedStyle: style,
       analysisResult,
+      refinementNote: '',
       history: [image, ...state.history.filter((entry) => entry !== image)].slice(0, 10),
       historyIndex: 0,
     })),
   setProcessing: (isProcessing, processStep = '') => set({ isProcessing, processStep }),
   setProcessStep: (processStep) => set({ processStep }),
+  setRefinementNote: (refinementNote) => set({ refinementNote }),
+  clearRefinementNote: () => set({ refinementNote: '' }),
   setHistory: (history) =>
     set({
       history,
@@ -49,6 +55,7 @@ export const createStudioSlice = (set) => ({
       analysisResult: null,
       isProcessing: false,
       processStep: '',
+      refinementNote: '',
       history: [],
       historyIndex: -1,
       show360: false,

@@ -1,6 +1,20 @@
 import { useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { auth, signOut } from '../firebase';
+import {
+  auth,
+  collection,
+  db,
+  deleteDoc,
+  deleteObject,
+  deleteUser,
+  doc,
+  getDocs,
+  ref,
+  requestDeleteAccountCascade,
+  shouldUseEmulators,
+  signOut,
+  storage,
+} from '../firebase';
 import { useAppStore } from '../store/useAppStore';
 import { useLocalLLM } from '../features/ai/hooks/useLocalLLM';
 import EditProfileModal from '../features/auth/EditProfileModal';
@@ -14,19 +28,86 @@ import { useStudioGeneration } from '../features/studio/hooks/useStudioGeneratio
 import { useCamera } from '../features/vision/hooks/useCamera';
 import { getFaceFocusStyle } from '../features/vision/lib/faceFocus';
 
+const ACCOUNT_DELETE_TIMEOUT_MS = 4000;
+
+function withTimeout(promise, timeoutMs, message) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = globalThis.setTimeout(() => reject(new Error(message)), timeoutMs);
+
+    promise.then(
+      (value) => {
+        globalThis.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        globalThis.clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
+
+function getAccountDeleteEndpoint() {
+  const apiKey = auth.app.options.apiKey;
+
+  if (shouldUseEmulators) {
+    const emulatorHost = window.location.hostname && window.location.hostname !== 'localhost'
+      ? window.location.hostname
+      : '127.0.0.1';
+    const emulatorPort = Number(import.meta.env.VITE_FIREBASE_AUTH_PORT || 9099);
+
+    return `http://${emulatorHost}:${emulatorPort}/identitytoolkit.googleapis.com/v1/accounts:delete?key=${apiKey}`;
+  }
+
+  return `https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${apiKey}`;
+}
+
+async function deleteAccountWithFallback(activeUser) {
+  try {
+    await withTimeout(
+      deleteUser(activeUser),
+      ACCOUNT_DELETE_TIMEOUT_MS,
+      'deleteUser timed out.',
+    );
+    return;
+  } catch (sdkError) {
+    console.warn('deleteUser timed out, retrying via REST endpoint.', sdkError);
+  }
+
+  const idToken = await activeUser.getIdToken(true);
+  const response = await fetch(getAccountDeleteEndpoint(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ idToken }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const message = payload?.error?.message || `Account deletion failed with HTTP ${response.status}.`;
+
+    throw new Error(message);
+  }
+}
+
 export default function AuthenticatedStudioShell({ persistVibeSelection }) {
   const user = useAppStore((state) => state.user);
+  const userProfile = useAppStore((state) => state.userProfile);
   const view = useAppStore((state) => state.view);
   const originalImage = useAppStore((state) => state.originalImage);
   const generatedImage = useAppStore((state) => state.generatedImage);
   const selectedStyle = useAppStore((state) => state.selectedStyle);
   const analysisResult = useAppStore((state) => state.analysisResult);
   const processStep = useAppStore((state) => state.processStep);
+  const history = useAppStore((state) => state.history);
+  const refinementNote = useAppStore((state) => state.refinementNote);
   const show360 = useAppStore((state) => state.show360);
   const showSettings = useAppStore((state) => state.showSettings);
   const showEditProfile = useAppStore((state) => state.showEditProfile);
   const localOnlyMode = useAppStore((state) => state.localOnlyMode);
   const setUser = useAppStore((state) => state.setUser);
+  const setUserProfile = useAppStore((state) => state.setUserProfile);
   const setView = useAppStore((state) => state.setView);
   const setOriginalImage = useAppStore((state) => state.setOriginalImage);
   const clearOriginalImage = useAppStore((state) => state.clearOriginalImage);
@@ -62,6 +143,71 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
       void aiRuntime.warmup();
     }
   }, [aiRuntime, originalImage, view]);
+
+  async function handleShareLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setToast({ message: 'Link copied to clipboard.', type: 'success' });
+    } catch {
+      setToast({ message: 'Sharing is unavailable here.', type: 'error' });
+      throw new Error('Link sharing unavailable.');
+    }
+  }
+
+  async function handleDeleteAccount() {
+    camera.stopCamera();
+
+    const activeUser = auth.currentUser;
+
+    if (!activeUser) {
+      signOutReset();
+      return { ok: true };
+    }
+
+    try {
+      try {
+        const idToken = await activeUser.getIdToken(true);
+
+        await requestDeleteAccountCascade({
+          idToken,
+          photoURL: activeUser.photoURL || userProfile?.photoURL || '',
+        });
+      } catch (requestError) {
+        console.warn('deleteAccountCascade request failed, falling back to client deletion.', requestError);
+
+        const historySnapshot = await getDocs(collection(db, 'users', activeUser.uid, 'history'));
+
+        await Promise.all(
+          historySnapshot.docs.map((entry) =>
+            deleteDoc(doc(db, 'users', activeUser.uid, 'history', entry.id)),
+          ),
+        );
+        await deleteDoc(doc(db, 'users', activeUser.uid));
+
+        if (activeUser.photoURL && /^https?:/i.test(activeUser.photoURL)) {
+          try {
+            await deleteObject(ref(storage, activeUser.photoURL));
+          } catch (error) {
+            console.warn('Profile photo cleanup failed:', error);
+          }
+        }
+
+        await deleteAccountWithFallback(activeUser);
+      }
+
+      await signOut(auth).catch(() => undefined);
+      signOutReset();
+      return { ok: true };
+    } catch (error) {
+      console.error('Account deletion failed:', error);
+      setToast({
+        message: 'Account deletion failed. Sign back in and try again.',
+        type: 'error',
+      });
+      return { ok: false };
+    }
+
+  }
 
   function handleImageUpload(event) {
     const file = event.target.files?.[0];
@@ -131,24 +277,6 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
     signOutReset();
   }
 
-  async function handleShareLook() {
-    if (navigator.share) {
-      await navigator.share({
-        title: 'My StyleShift Preview',
-        text: 'Previewed locally with StyleShift.',
-        url: window.location.href,
-      });
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setToast({ message: 'Link copied to clipboard.', type: 'success' });
-    } catch {
-      setToast({ message: 'Sharing is unavailable here.', type: 'error' });
-    }
-  }
-
   let activeScene = null;
 
   if (view === 'quiz') {
@@ -209,8 +337,9 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
         originalImageStyle={originalImageFocusStyle}
         analysisResult={analysisResult}
         onBack={() => setView('mirror')}
-        onOpenShare={() => setView('share')}
+        onContinueToShare={() => setView('share')}
         onRefine={handleRefine}
+        refinementNote={refinementNote}
       />
     );
   }
@@ -225,8 +354,9 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
         originalFaceFocus={camera.visionState.focusBox}
         originalImageStyle={originalImageFocusStyle}
         analysisResult={analysisResult}
+        refinementNote={refinementNote}
         onBack={() => setView('refine')}
-        onShare={handleShareLook}
+        onShareLink={handleShareLink}
       />
     );
   }
@@ -237,6 +367,7 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
         isOpen={showSettings}
         user={user}
         aiRuntime={aiRuntime}
+        history={history}
         localOnlyMode={localOnlyMode}
         onClose={closeSettings}
         onToggleLocalOnlyMode={toggleLocalOnlyMode}
@@ -244,6 +375,7 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
           openEditProfile();
           closeSettings();
         }}
+        onDeleteAccount={handleDeleteAccount}
         onSignOut={handleSignOut}
       />
 
@@ -251,7 +383,9 @@ export default function AuthenticatedStudioShell({ persistVibeSelection }) {
         isOpen={showEditProfile}
         onClose={closeEditProfile}
         user={user}
+        userProfile={userProfile}
         onUpdateUser={setUser}
+        onUpdateProfile={setUserProfile}
       />
 
       <AnimatePresence initial={false} mode="wait">

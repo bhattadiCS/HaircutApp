@@ -16,6 +16,7 @@ export function startProfileSync({ user, database, onStatusChange }) {
   if (!user) {
     setHistory([]);
     setUserProfile(null);
+    setUserVibe(null);
     emitStatus(idleState);
     return () => {};
   }
@@ -54,13 +55,18 @@ export function startProfileSync({ user, database, onStatusChange }) {
         : null;
 
       setUserProfile(profile);
+      const currentView = useAppStore.getState().view;
 
       if (profile?.vibe) {
         setUserVibe(profile.vibe);
-
-        const currentView = useAppStore.getState().view;
         if (currentView === 'auth' || currentView === 'quiz') {
           setView('mirror');
+        }
+      } else {
+        setUserVibe(null);
+
+        if (currentView === 'auth' || currentView === 'mirror' || currentView === 'quiz') {
+          setView('quiz');
         }
       }
 
