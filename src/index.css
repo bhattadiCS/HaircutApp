@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Outfit', 'Aptos', 'Segoe UI', system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+  --surface-base: #020617;
+  --surface-accent: #f59e0b;
+  --surface-highlight: #fdf4ff;
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-fill: rgba(255, 255, 255, 0.07);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+}
+
+html {
+  min-height: 100%;
+  background: var(--surface-base);
+  touch-action: manipulation;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100svh;
+  background:
+    radial-gradient(circle at top left, rgba(245, 158, 11, 0.18), transparent 24%),
+    radial-gradient(circle at 82% 18%, rgba(34, 211, 238, 0.14), transparent 18%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.96), rgba(2, 6, 23, 1));
+  color: var(--surface-highlight);
+  font-family: 'Outfit', 'Aptos', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
+}
+
+button,
+input,
+label,
+a {
+  touch-action: manipulation;
+}
+
+.app-screen {
+  min-height: 100vh;
+  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
+}
+
+@supports (min-height: 100dvh) {
+  body,
+  #root,
+  .app-screen {
+    min-height: 100dvh;
+  }
+}
+
+@supports (height: 100dvh) {
+  #root,
+  .app-screen {
+    height: 100dvh;
+  }
+}
+
+.glass-panel {
+  border: 1px solid var(--glass-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(24px);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.26);
+}
+
+.glass-chip {
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+}
+
+.glass-quiet {
+  border: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(24px);
+}
+
+.font-display {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-technical {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', monospace;
+}

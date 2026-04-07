@@ -1,0 +1,42 @@
+[
+  {
+    "id": "middle-part-90s",
+    "title": "90s Middle Part Flow",
+    "keywords": ["middle part", "flow", "curtain", "90s", "classic"],
+    "sectioning": "a horseshoe section through the parietal ridge",
+    "angles": "90 degree internal graduation through the top with a 45 degree perimeter",
+    "clipper": "Use a #2 guard low in the transition, then scissor-over-comb at the ridge",
+    "finish": "Point cut the fringe and preserve temple softness",
+    "maintenance": "Blow dry from the center and finish with light styling cream"
+  },
+  {
+    "id": "skin-fade-precision",
+    "title": "Precision Skin Fade",
+    "keywords": ["fade", "skin fade", "street", "barber", "short"],
+    "sectioning": "a low horseshoe split with a clear disconnection reference",
+    "angles": "Keep the top square with minimal over-direction to protect weight",
+    "clipper": "Open lever to skin, blend upward through 0.5, 1, and 2 guards",
+    "finish": "Debulk the ridge with clipper-over-comb and refine the line with trimmers",
+    "maintenance": "Refresh every 2 to 3 weeks to keep the fade crisp"
+  },
+  {
+    "id": "modern-texture-crop",
+    "title": "Modern Textured Crop",
+    "keywords": ["crop", "texture", "short", "creative", "volume"],
+    "sectioning": "radial sections from the crown with the front kept slightly heavier",
+    "angles": "Use 90 degree elevation through the interior and soften the fringe",
+    "clipper": "Taper the temples with a #1.5 to #2 blend",
+    "finish": "Deep point cut the top and keep the outline matte, not glossy",
+    "maintenance": "Use clay for separation and air-dried texture"
+  },
+  {
+    "id": "modern-mullet-balance",
+    "title": "Modern Mullet Balance",
+    "keywords": ["mullet", "flow", "street", "creative", "length"],
+    "sectioning": "disconnect the crown panel from the perimeter to keep length visible",
+    "angles": "Use low graduation in the back and preserve weight through the occipital",
+    "clipper": "Taper the sideburns with a soft #2 to clipper-over-comb transition",
+    "finish": "Slice the back for movement while keeping the neckline deliberate",
+    "maintenance": "Diffuse with sea salt spray to exaggerate movement"
+  }
+]
