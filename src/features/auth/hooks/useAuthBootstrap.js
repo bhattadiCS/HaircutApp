@@ -16,6 +16,7 @@ import {
   getFirebaseConfigSetupMessage,
   isMissingFirebaseConfigError,
 } from '../../../lib/firebaseConfig';
+import { getGoogleAuthErrorMessage } from '../lib/authMessaging';
 
 function shouldPreferRedirectSignIn() {
   const userAgent = globalThis.navigator?.userAgent || '';
@@ -29,26 +30,6 @@ function shouldPreferRedirectSignIn() {
 
   return isStandalone || (isIOS && isSafari);
 }
-
-function getGoogleAuthErrorMessage(error) {
-  if (isMissingFirebaseConfigError(error)) {
-    return getFirebaseConfigSetupMessage();
-  }
-
-  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'unknown';
-
-  switch (error?.code) {
-    case 'auth/unauthorized-domain':
-      return `Google sign-in is blocked until this domain is added to Firebase Authentication for project "${projectId}".`;
-    case 'auth/operation-not-allowed':
-      return `Google sign-in is disabled in Firebase Authentication for project "${projectId}". Enable it in the Firebase Console.`;
-    case 'auth/operation-not-supported-in-this-environment':
-      return 'This browser cannot complete Google sign-in with a popup. Redirect sign-in will be used instead.';
-    default:
-      return `Google sign-in is unavailable for project "${projectId}". Check Firebase auth or use email instead.`;
-  }
-}
-
 export function useAuthBootstrap() {
   const user = useAppStore((state) => state.user);
   const setUser = useAppStore((state) => state.setUser);

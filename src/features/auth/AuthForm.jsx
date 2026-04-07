@@ -10,13 +10,14 @@ import {
   getFirebaseConfigSetupMessage,
   isMissingFirebaseConfigError,
 } from '../../lib/firebaseConfig';
+import { getEmailPasswordAuthErrorMessage } from './lib/authMessaging';
 
 function formatAuthErrorMessage(error) {
   if (isMissingFirebaseConfigError(error)) {
     return getFirebaseConfigSetupMessage();
   }
 
-  return (error?.message || 'An unexpected error occurred during sign-in.').replace('Firebase: ', '');
+  return getEmailPasswordAuthErrorMessage(error);
 }
 
 const AuthForm = ({ onLogin }) => {
@@ -43,7 +44,7 @@ const AuthForm = ({ onLogin }) => {
       }
     } catch (err) {
       console.error('Auth error:', err);
-      setError(formatAuthErrorMessage(err));
+      setError(getEmailPasswordAuthErrorMessage(err, { mode: isLogin ? 'login' : 'signup' }));
     } finally {
       setLoading(false);
     }

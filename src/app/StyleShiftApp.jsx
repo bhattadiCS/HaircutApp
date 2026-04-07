@@ -1,10 +1,8 @@
-import { lazy, Suspense } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import Toast from '../components/Toast';
 import AuthScene from '../features/auth/AuthScene';
 import { useAuthBootstrap } from '../features/auth/hooks/useAuthBootstrap';
-
-const AuthenticatedStudioShell = lazy(() => import('./AuthenticatedStudioShell'));
+import AuthenticatedStudioShell from './AuthenticatedStudioShell';
 
 export default function StyleShiftApp() {
   const view = useAppStore((state) => state.view);
@@ -17,17 +15,7 @@ export default function StyleShiftApp() {
   if (view === 'auth') {
     activeScene = <AuthScene key="auth" onLogin={loginWithGoogle} />;
   } else {
-    activeScene = (
-      <Suspense
-        fallback={
-          <div className="app-screen flex items-center justify-center bg-zinc-950 text-white">
-            <p className="text-sm uppercase tracking-[0.3em] text-white/70">Loading Studio...</p>
-          </div>
-        }
-      >
-        <AuthenticatedStudioShell persistVibeSelection={persistVibeSelection} />
-      </Suspense>
-    );
+    activeScene = <AuthenticatedStudioShell persistVibeSelection={persistVibeSelection} />;
   }
 
   const sceneTitleByView = {
